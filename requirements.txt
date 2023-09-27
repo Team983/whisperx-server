@@ -1,0 +1,10 @@
+boto3
+python-multipart
+uvicorn
+starlette
+httpx
+"ray[serve]"
+transformers
+torchvision
+requests
+torch

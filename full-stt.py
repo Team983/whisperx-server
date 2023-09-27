@@ -9,6 +9,7 @@ from time import time
 from starlette.requests import Request
 from fastapi import FastAPI
 from typing import Dict
+from torch import cuda
 from services.s3_service import download_file_from_s3
 from ray.serve.handle import RayServeDeploymentHandle
 

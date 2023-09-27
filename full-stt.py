@@ -5,7 +5,6 @@ import gc
 import logging
 import httpx
 import ray
-from torch import cuda
 from time import time
 from starlette.requests import Request
 from fastapi import FastAPI
@@ -63,7 +62,7 @@ class WhisperxDeployment:
     async def get_model(self, model_id='large-v2'):
         logger.info(f"Loading model {model_id}")
 
-        device = 'cuda' if cuda.is_available() else 'cpu'
+        device = 'cuda'
 
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
 
@@ -100,7 +99,7 @@ class WhisperxDeployment:
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
             data = {"noteId": note_id, "result": result}
-            httpx.post(f"http://127.0.0.1:9000/asr-completed/{note_id}", json=data)
+            httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
 
         except Exception as e:
             logger.error(f"Error processing {note_id} {file_name}. Error: {str(e)}")
@@ -108,7 +107,7 @@ class WhisperxDeployment:
                 # Consider error caused by "No active speech found in audio" as a successful transcription
                 # 수정필요
                 data = {"noteId": note_id, "result": "No active speech found in audio"}
-                httpx.post(f"http://127.0.0.1:9000/asr-completed/{note_id}", json=data)
+                httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
 
             else:
                 # Inform the server about the remaining error

@@ -49,16 +49,6 @@ class APIIngress:
 @ray.serve.deployment
 class WhisperxDeployment:
 
-    # def __init__(self):
-    #     # Download software-development model
-    #     while True:
-    #         try:
-    #             huggingface_hub.snapshot_download('yongchanskii/whisperx-for-developers', resume_download=True)
-    #             break
-    #         except:
-    #             print('Resume downloading...')
-
-
     @ray.serve.multiplexed(max_num_models_per_replica=2)
     async def get_model(self, model_id='large-v2'):
         logger.info(f"Loading model {model_id}")
@@ -113,7 +103,7 @@ class WhisperxDeployment:
             else:
                 # Inform the server about the remaining error
                 error_data = {"noteId": note_id, "message": str(e)}
-                httpx.post(f"http://127.0.0.1:9000/asr-error/{note_id}", json=error_data)
+                httpx.post(f"http://220.118.70.197:9000/asr-error/{note_id}", json=error_data)
     
         finally:
             if os.path.exists(file_name):

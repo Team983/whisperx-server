@@ -34,7 +34,7 @@ class APIIngress:
         file_name = request['file_name']
         model_id = ray.serve.get_multiplexed_model_id()
         # download_file_from_s3(file_name)
-        self.handle.get_model.remote(model_id)
+        await self.handle.get_model.remote(model_id)
         self.handle.transcribe_audio.remote(note_id, file_name)
         return {"noteId": note_id, "fileName": file_name}
 
@@ -80,7 +80,7 @@ class WhisperxDeployment:
 
 
     @ray.serve.multiplexed(max_num_models_per_replica=2)
-    def get_model(self, model_id='large-v2'):
+    async def get_model(self, model_id='large-v2'):
         logger.info(f"Loading model {model_id}")
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
@@ -119,7 +119,7 @@ class WhisperxDeployment:
                 # 수정필요
                 data = {"noteId": note_id, "result": "No active speech found in audio", "valid":False}
                 httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
-
+    
             else:
                 # Inform the server about the remaining error
                 error_data = {"noteId": note_id, "message": str(e), "valid":False}

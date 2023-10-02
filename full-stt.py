@@ -34,7 +34,7 @@ class APIIngress:
         file_name = request['file_name']
         model_id = ray.serve.get_multiplexed_model_id()
         # download_file_from_s3(file_name)
-        await self.handle.get_model.remote(model_id)
+        self.handle.get_model.remote(model_id)
         self.handle.transcribe_audio.remote(note_id, file_name)
         return {"noteId": note_id, "fileName": file_name}
 
@@ -80,7 +80,7 @@ class WhisperxDeployment:
 
 
     @ray.serve.multiplexed(max_num_models_per_replica=2)
-    async def get_model(self, model_id='large-v2'):
+    def get_model(self, model_id='large-v2'):
         logger.info(f"Loading model {model_id}")
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
@@ -96,7 +96,7 @@ class WhisperxDeployment:
             audio = whisperx.load_audio(file_path)
 
             # 2. Transcribe with faster-whisper (batched)
-            result = self.asr_model.transcribe(audio, batch_size=batch_size, num_workers=1)
+            result = self.asr_model.transcribe(audio, batch_size=batch_size)
             transcription_end_time = time()
             logger.info(f'Total time taken for transcription: {transcription_end_time-start_time}')
 

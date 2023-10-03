@@ -62,7 +62,7 @@ class WhisperxDeployment:
     
     
     @app.post("/asr/{note_id}", status_code=202)
-    async def stt(self, note_id:str, request: Request, background_tasks: BackgroundTasks) -> Dict:
+    async def stt(self, note_id:str, request: Request, background_tasks:BackgroundTasks) -> Dict:
         request = await request.json()
         request = json.loads(request)
         file_name = request['file_name']

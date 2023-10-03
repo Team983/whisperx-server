@@ -80,14 +80,14 @@ class WhisperxDeployment:
 
 
     @ray.serve.multiplexed(max_num_models_per_replica=1)
-    async def get_model(self, model_id='large-v2'):
+    async def get_model(self, model_id):
         logger.info(f"Loading model {model_id}")
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
 
 
     def transcribe_audio(self, note_id:str, file_name:str):
-        logger.info(f"Start transcribing node id: {note_id}")
+        logger.info(f"Start transcribing note id: {note_id}")
         download_file_from_s3(file_name)
         start_time = time()
         batch_size = 2 # reduce if low on GPU mem

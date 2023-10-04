@@ -1,53 +1,212 @@
-import asyncio
+import os
+import whisperx
+import json
+import gc
 import logging
-from queue import Empty
-
-from fastapi import FastAPI
-from starlette.responses import StreamingResponse
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-
+import httpx
+import huggingface_hub
+import requests
+from time import time
+from starlette.requests import Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from typing import Dict
+from torch import cuda
+from services.s3_service import download_file_from_s3
+from ray.serve.handle import RayServeDeploymentHandle
 from ray import serve
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
 app = FastAPI()
 
-
 @serve.deployment
 @serve.ingress(app)
-class Textbot:
-    def __init__(self, model_id: str):
-        self.loop = asyncio.get_running_loop()
+class APIIngress:
+    def __init__(self, live_handle: RayServeDeploymentHandle, full_handle: RayServeDeploymentHandle) -> None:
+        self.live_handle=live_handle
+        self.full_handle=full_handle
+        self.LIVE_UPLOAD_DIR = 'live'
+        os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
 
-        self.model_id = model_id
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_id)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
 
-    @app.post("/")
-    def handle_request(self, prompt: str) -> StreamingResponse:
-        logger.info(f'Got prompt: "{prompt}"')
-        streamer = TextIteratorStreamer(
-            self.tokenizer, timeout=0, skip_prompt=True, skip_special_tokens=True
-        )
-        self.loop.run_in_executor(None, self.generate_text, prompt, streamer)
-        return StreamingResponse(
-            self.consume_streamer(streamer), media_type="text/plain"
-        )
+    @app.websocket("/live")
+    async def live_stt(self, ws: WebSocket) -> None:
+        await ws.accept()
+        try:
+            while True:
+                data = await ws.receive_bytes()
+                if data:
+                    file_name = os.path.join(self.LIVE_UPLOAD_DIR, "blob_file.bin")
+                    with open(file_name, "wb") as f:
+                        f.write(data)
+                    self.live_handle.transcribe_audio.remote(file_name)
+                    await ws.send_text(f"File saved as: {file_name}")
+        except WebSocketDisconnect:
+            print("Client disconnected.")
 
-    def generate_text(self, prompt: str, streamer: TextIteratorStreamer):
-        input_ids = self.tokenizer([prompt], return_tensors="pt").input_ids
-        self.model.generate(input_ids, streamer=streamer, max_length=10000)
 
-    async def consume_streamer(self, streamer: TextIteratorStreamer):
-        while True:
+    @app.post("/asr/{note_id}", status_code=202)
+    async def full_stt(self, note_id:str, request: Request) -> Dict:
+        request = await request.json()
+        request = json.loads(request)
+        file_name = request['file_name']
+        model_id = serve.get_multiplexed_model_id()
+        # download_file_from_s3(file_name)
+        await self.full_handle.get_model.remote(model_id)
+        self.full_handle.transcribe_audio.remote(note_id, file_name)
+        return {"noteId": note_id, "fileName": file_name}
+
+    @app.get('/healthy')
+    def healthy(self):
+        logger.info('hello')
+        return {"result" : ["healthy"]}
+    
+
+@serve.deployment(ray_actor_options={"num_cpus":1, "num_gpus": 0.2})
+class LiveSTT:
+    def __init__(self):
+        device = 'cuda' if cuda.is_available() else 'cpu'
+        compute_type = 'int8'
+        self.asr_model = whisperx.load_model('small', device, language='ko', compute_type=compute_type)
+
+
+    def transcribe_audio(self, file_name:str):
+        logger.info(f"Start live transcribing note id: {file_name}")
+        start_time = time()
+        batch_size = 1 # reduce if low on GPU mem
+        # file_path = os.path.join(os.getcwd(), file_name)
+        file_path = file_name
+        note_id = 1
+        try:
+            audio = whisperx.load_audio(file_path)
+            result = self.asr_model.transcribe(audio, batch_size=batch_size)           
+            end_time = time()
+            logger.info(f"Total time taken: {end_time - start_time}")
+            data = {"noteId": note_id, "result": result, "valid": True}
+            httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+
+        except Exception as e:
+            logger.error(f"Error processing {note_id} {file_name}. Error: {str(e)}")
+            if str(e) == "0":
+                # Consider error caused by "No active speech found in audio" as a successful transcription
+                # 수정필요
+                data = {"noteId": note_id, "result": "No active speech found in audio", "valid":False}
+                httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+    
+            else:
+                # Inform the server about the remaining error
+                error_data = {"noteId": note_id, "message": str(e), "valid":False}
+                httpx.post(f"http://220.118.70.197:9000/asr-error/{note_id}", json=error_data)
+    
+        finally:
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            gc.collect()
+            cuda.empty_cache()
+
+    # async def consume_streamer(self, streamer: TextIteratorStreamer):
+    #     while True:
+    #         try:
+    #             for token in streamer:
+    #                 logger.info(f'Yielding token: "{token}"')
+    #                 yield token
+    #             break
+    #         except Empty:
+    #             # The streamer raises an Empty exception if the next token
+    #             # hasn't been generated yet. `await` here to yield control
+    #             # back to the event loop so other coroutines can run.
+    #             await asyncio.sleep(0.001)
+
+
+@serve.deployment(ray_actor_options={"num_cpus":1, "num_gpus": 0.2})
+class FullSTT:
+
+    def __init__(self):
+        self._MODELS = {
+                    "large-v2": "guillaumekln/faster-whisper-large-v2",
+                    "software-development": "yongchanskii/whisperx-for-developers"
+        }
+
+        allow_patterns = [
+            "config.json",
+            "model.bin",
+            "tokenizer.json",
+            "vocabulary.*",
+        ]
+
+        kwargs = {
+                "local_files_only": False,
+                "allow_patterns": allow_patterns,
+        }
+        for model_name in self._MODELS:
             try:
-                for token in streamer:
-                    logger.info(f'Yielding token: "{token}"')
-                    yield token
-                break
-            except Empty:
-                # The streamer raises an Empty exception if the next token
-                # hasn't been generated yet. `await` here to yield control
-                # back to the event loop so other coroutines can run.
-                await asyncio.sleep(0.001)
+                huggingface_hub.snapshot_download(self._MODELS.get(model_name), **kwargs)
+            except (
+                huggingface_hub.utils.HfHubHTTPError,
+                requests.exceptions.ConnectionError,
+            ) as exception:
+                kwargs["local_files_only"] = True
+                huggingface_hub.snapshot_download(self._MODELS.get(model_name), **kwargs)
+
+        self.device = "cuda" if cuda.is_available() else "cpu"
+        self.diarize_model = whisperx.DiarizationPipeline(use_auth_token=os.getenv("HF_API_KEY"), device=self.device)
+
+
+    @serve.multiplexed(max_num_models_per_replica=1)
+    async def get_model(self, model_id):
+        logger.info(f"Loading model {model_id}")
+        compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
+        self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
+
+
+    def transcribe_audio(self, note_id:str, file_name:str):
+        logger.info(f"Start transcribing note id: {note_id}")
+        download_file_from_s3(file_name)
+        start_time = time()
+        batch_size = 2 # reduce if low on GPU mem
+        file_path = os.path.join(os.getcwd(), file_name)
+        try:
+            audio = whisperx.load_audio(file_path)
+
+            # 2. Transcribe with faster-whisper (batched)
+            result = self.asr_model.transcribe(audio, batch_size=batch_size)
+            transcription_end_time = time()
+            logger.info(f'Total time taken for transcription: {transcription_end_time-start_time}')
+
+            # 3. Assign speaker labels
+            diarize_start_time = time()
+            diarize_segments = self.diarize_model(audio)
+            result = whisperx.assign_word_speakers(diarize_segments, result)
+            diarize_end_time = time()
+            logger.info(f'Total time taken for diarization: {diarize_end_time-diarize_start_time}')
+            
+            end_time = time()
+            logger.info(f"Total time taken: {end_time - start_time}")
+            data = {"noteId": note_id, "result": result, "valid": True}
+            httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+
+        except Exception as e:
+            logger.error(f"Error processing {note_id} {file_name}. Error: {str(e)}")
+            if str(e) == "0":
+                # Consider error caused by "No active speech found in audio" as a successful transcription
+                # 수정필요
+                data = {"noteId": note_id, "result": "No active speech found in audio", "valid":False}
+                httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+    
+            else:
+                # Inform the server about the remaining error
+                error_data = {"noteId": note_id, "message": str(e), "valid":False}
+                httpx.post(f"http://220.118.70.197:9000/asr-error/{note_id}", json=error_data)
+    
+        finally:
+            if os.path.exists(file_name):
+                os.remove(file_name)
+            gc.collect()
+            cuda.empty_cache()
+
+live_stt = LiveSTT.bind()
+full_stt = FullSTT.bind()
+entrypoint = APIIngress.bind(live_stt, full_stt)
+
 

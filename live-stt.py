@@ -12,8 +12,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import Dict
 from torch import cuda
 from services.s3_service import download_file_from_s3
-from ray.serve.handle import RayServeDeploymentHandle
-from ray import serve
+from ray.serve.handle import DeploymentHandle
+from ray import serve, get
+
+#삭제하기!!
+from dotenv import load_dotenv
+load_dotenv()
+########################################
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
@@ -23,26 +28,48 @@ app = FastAPI()
 @serve.deployment
 @serve.ingress(app)
 class APIIngress:
-    def __init__(self, live_handle: RayServeDeploymentHandle, full_handle: RayServeDeploymentHandle) -> None:
+    def __init__(self, live_handle: DeploymentHandle, full_handle: DeploymentHandle) -> None:
         self.live_handle=live_handle
         self.full_handle=full_handle
         self.LIVE_UPLOAD_DIR = 'live'
         os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
 
 
+    # @app.websocket("/live")
+    # async def live_stt(self, ws: WebSocket) -> None:
+    #     await ws.accept()
+    #     try:
+    #         while True:
+    #             data = await ws.receive_json()
+    #             user_id = data["userId"]
+    #             audio_data = bytes(data["audioData"])
+    #             if user_id and audio_data:
+    #                 file_name = os.path.join(self.LIVE_UPLOAD_DIR, f'audio_file_{user_id}.bin')
+    #                 with open(file_name, "wb") as f:
+    #                     f.write(audio_data)
+    #                 response = self.live_handle.transcribe_audio.remote(file_name)
+    #                 result = await response
+    #                 await ws.send_json(get(result))
+    #     except WebSocketDisconnect:
+    #         ws.close()
+    #         print("Client disconnected.")
+
     @app.websocket("/live")
     async def live_stt(self, ws: WebSocket) -> None:
         await ws.accept()
         try:
             while True:
-                data = await ws.receive_bytes()
-                if data:
-                    file_name = os.path.join(self.LIVE_UPLOAD_DIR, "blob_file.bin")
+                audio_data = await ws.receive_bytes()
+                if audio_data:
+                    request_time = time()
+                    file_name = os.path.join(self.LIVE_UPLOAD_DIR, f'audio_file_{request_time}.bin')
                     with open(file_name, "wb") as f:
-                        f.write(data)
-                    self.live_handle.transcribe_audio.remote(file_name)
-                    await ws.send_text(f"File saved as: {file_name}")
+                        f.write(audio_data)
+                    response = self.live_handle.transcribe_audio.remote(file_name)
+                    result = await response
+                    await ws.send_json(get(result))
         except WebSocketDisconnect:
+            ws.close()
             print("Client disconnected.")
 
 
@@ -72,51 +99,33 @@ class LiveSTT:
 
 
     def transcribe_audio(self, file_name:str):
-        logger.info(f"Start live transcribing note id: {file_name}")
+        logger.info(f"Start live transcribing: {file_name}")
         start_time = time()
-        batch_size = 1 # reduce if low on GPU mem
-        # file_path = os.path.join(os.getcwd(), file_name)
-        file_path = file_name
-        note_id = 1
+        batch_size = 1 
         try:
-            audio = whisperx.load_audio(file_path)
-            result = self.asr_model.transcribe(audio, batch_size=batch_size)           
+            audio = whisperx.load_audio(file_name)
+            text = self.asr_model.transcribe(audio, batch_size=batch_size)           
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
-            data = {"noteId": note_id, "result": result, "valid": True}
-            httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+            result = {"result": text, "valid":True}
 
         except Exception as e:
-            logger.error(f"Error processing {note_id} {file_name}. Error: {str(e)}")
+            logger.error(f"Error processing {file_name}. Error: {str(e)}")
             if str(e) == "0":
                 # Consider error caused by "No active speech found in audio" as a successful transcription
                 # 수정필요
-                data = {"noteId": note_id, "result": "No active speech found in audio", "valid":False}
-                httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+                result = {"result": "No active speech found in audio", "valid":False}
     
             else:
                 # Inform the server about the remaining error
-                error_data = {"noteId": note_id, "message": str(e), "valid":False}
-                httpx.post(f"http://220.118.70.197:9000/asr-error/{note_id}", json=error_data)
+                result = {"result": str(e), "valid":False}
     
         finally:
             if os.path.exists(file_name):
                 os.remove(file_name)
             gc.collect()
             cuda.empty_cache()
-
-    # async def consume_streamer(self, streamer: TextIteratorStreamer):
-    #     while True:
-    #         try:
-    #             for token in streamer:
-    #                 logger.info(f'Yielding token: "{token}"')
-    #                 yield token
-    #             break
-    #         except Empty:
-    #             # The streamer raises an Empty exception if the next token
-    #             # hasn't been generated yet. `await` here to yield control
-    #             # back to the event loop so other coroutines can run.
-    #             await asyncio.sleep(0.001)
+            return result
 
 
 @serve.deployment(ray_actor_options={"num_cpus":1, "num_gpus": 0.2})

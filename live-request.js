@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 // /home/team983/server/data/audio/example_5.mov
 // /home/team983/server/data/audio/example_15.m4a
 // /home/team983/server/data/audio/example_30.wav
-const audioFilePath = '/home/team983/server/data/audio/example_1.wav'; // 실제 WAV 파일 경로로 대체해야 합니다.
+const audioFilePath = '/home/team983/server/data/audio/example_5.mov';
 
 // 사용자 이름 설정
 const userId = "yongchan";

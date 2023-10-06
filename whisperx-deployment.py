@@ -85,7 +85,7 @@ class APIIngress:
         return {"result" : ["healthy"]}
     
 
-@serve.deployment(ray_actor_options={"num_cpus":1, "num_gpus": 0.2})
+@serve.deployment
 class LiveSTT:
     def __init__(self):
         device = 'cuda' if cuda.is_available() else 'cpu'
@@ -123,7 +123,7 @@ class LiveSTT:
             return result
 
 
-@serve.deployment(ray_actor_options={"num_cpus":1, "num_gpus": 0.2})
+@serve.deployment
 class FullSTT:
 
     def __init__(self):
@@ -173,12 +173,12 @@ class FullSTT:
         try:
             audio = whisperx.load_audio(file_path)
 
-            # 2. Transcribe with faster-whisper (batched)
+            # 1. Transcribe with faster-whisper (batched)
             result = self.asr_model.transcribe(audio, batch_size=batch_size)
             transcription_end_time = time()
             logger.info(f'Total time taken for transcription: {transcription_end_time-start_time}')
 
-            # 3. Assign speaker labels
+            # 2. Assign speaker labels
             diarize_start_time = time()
             diarize_segments = self.diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, result)

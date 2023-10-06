@@ -15,11 +15,6 @@ from services.s3_service import download_file_from_s3
 from ray.serve.handle import DeploymentHandle
 from ray import serve, get
 
-#삭제하기!!
-from dotenv import load_dotenv
-load_dotenv()
-########################################
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
@@ -34,7 +29,7 @@ class APIIngress:
         self.LIVE_UPLOAD_DIR = 'live'
         os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
 
-
+    # JSON 형식으로 데이터를 받는 경우
     # @app.websocket("/live")
     # async def live_stt(self, ws: WebSocket) -> None:
     #     await ws.accept()

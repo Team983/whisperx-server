@@ -6,13 +6,13 @@ const WebSocket = require('ws');
 // /home/team983/server/data/audio/example_5.mov
 // /home/team983/server/data/audio/example_15.m4a
 // /home/team983/server/data/audio/example_30.wav
-const audioFilePath = '/home/team983/server/data/audio/example_5.mov';
+const audioFilePath = '/home/team983/server/data/audio/example_30.wav';
 
 // 사용자 이름 설정
 const userId = "yongchan";
 
 // WebSocket 서버 URL로 대체해야 합니다.
-const serverUrl = "ws://220.118.70.197:8081/live";
+const serverUrl = "ws://220.118.70.197:8000/live";
 
 // WebSocket 연결
 const socket = new WebSocket(serverUrl);
@@ -23,7 +23,7 @@ socket.on('message', (data) => {
   const receivedData = JSON.parse(data);
 
   // 데이터 처리 및 추가 작업 수행
-  console.log(receivedData.result.segments)
+  console.log(receivedData)
 
   // WebSocket 연결 닫기 (선택사항)
   // socket.close();

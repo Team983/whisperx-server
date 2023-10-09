@@ -19,9 +19,6 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
-from dotenv import load_dotenv
-load_dotenv(dotenv_path='/home/team983/secret/.env')
-
 app = FastAPI()
 
 @serve.deployment
@@ -71,7 +68,7 @@ class APIIngress:
             # delete_file_from_s3(file_name)
             # upload_file_to_s3(converted_filepath)
             ############################
-            
+
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 

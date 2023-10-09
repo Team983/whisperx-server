@@ -59,6 +59,7 @@ class APIIngress:
         og_filepath = os.path.join(os.getcwd(), file_name)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
+            converted_filename = os.path.basename(converted_filepath)
             if os.path.exists(og_filepath):
                 os.remove(og_filepath)
             duration = get_audio_duration(converted_filepath)
@@ -68,7 +69,7 @@ class APIIngress:
             # upload_file_to_s3(converted_filepath)
             ############################
 
-            s3ObjectUrl = get_s3_object_url(converted_filepath)
+            s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
             model_id = serve.get_multiplexed_model_id()
@@ -77,7 +78,7 @@ class APIIngress:
 
             return {
                 "noteId": note_id,
-                "filename": converted_filepath,
+                "filename": converted_filename,
                 "duration": duration,
                 "s3ObjectUrl": s3ObjectUrl,
                 "status": "PROCESSING"

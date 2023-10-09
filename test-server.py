@@ -7,11 +7,14 @@ app = FastAPI()
 
 class CompleteRequest(BaseModel):
     noteId: str
-    result: Union[dict, str]
+    segments: Union[dict, list]
+    language: str
+
 
 class ErrorRequest(BaseModel):
     noteId: str
     message: str
+    status: str
 
 complete_request_dict = dict()
 error_request_dict = dict()
@@ -19,42 +22,42 @@ error_request_dict = dict()
 total_completed = 0
 total_error = 0
 
-@app.post("/asr-completed/{note_id}")
-async def PostCompleteRequest(note_id:str, request:CompleteRequest):
+@app.post("/api/v1/note/asr-completed-on")
+async def PostCompleteRequest(request:CompleteRequest):
     global complete_request_dict
     global total_completed
     request_dict = dict(request)
-    request_dict['success'] = True
+    note_id = request_dict["noteId"]
     complete_request_dict[note_id] = request_dict
     total_completed += 1
     return JSONResponse(request_dict)
 
 
-@app.post("/asr-error/{note_id}")
-async def PostErrorRequest(note_id:str, request:ErrorRequest):
+@app.post("/api/v1/note/asr-error")
+async def PostErrorRequest(request:ErrorRequest):
     global error_request_dict
     global total_error
     request_dict = dict(request)
-    request_dict['success'] = True
+    note_id = request_dict["noteId"]
     error_request_dict[note_id] = request_dict
     total_error += 1
     return JSONResponse(request_dict)
 
 
-@app.get('/asr-completed/{note_id}')
+@app.get("/api/v1/note/asr-completed-on/{note_id}")
 async def GetCompleteRequest(note_id:str):
     try:
         return JSONResponse(complete_request_dict[note_id])
     except:
-        return JSONResponse({"success": False})
+        return JSONResponse({"success": "Note id not found"})
 
 
-@app.get('/asr-error/{note_id}')
+@app.get('/api/v1/note/asr-error/{note_id}')
 async def GetErrorRequest(note_id:str):
     try:
         return JSONResponse(error_request_dict[note_id])
     except:
-        return JSONResponse({"success": False})
+        return JSONResponse({"success": "Note id not found"})
 
 
 @app.get('/number_completed')

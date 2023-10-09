@@ -11,12 +11,16 @@ from starlette.requests import Request
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from typing import Dict
 from torch import cuda
-from services.s3_service import download_file_from_s3
+from services.s3_service import *
+from services.audio_service import *
 from ray.serve.handle import DeploymentHandle
 from ray import serve
-
+from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
+
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='/home/team983/secret/.env')
 
 app = FastAPI()
 
@@ -53,12 +57,62 @@ class APIIngress:
     async def full_stt(self, note_id:str, request: Request) -> Dict:
         request = await request.json()
         request = json.loads(request)
-        file_name = request['file_name']
-        model_id = serve.get_multiplexed_model_id()
-        # download_file_from_s3(file_name)
-        self.full_handle.get_model.remote(model_id)
-        self.full_handle.transcribe_audio.remote(note_id, file_name)
-        return {"noteId": note_id, "fileName": file_name}
+        file_name = request.get("file_name")
+        download_file_from_s3(file_name)
+        og_filepath = os.path.join(os.getcwd(), file_name)
+        try:
+            converted_filename = convert_to_m4a(og_filepath)
+            if os.path.exists(og_filepath):
+                os.remove(og_filepath)
+            converted_filepath = os.path.join(os.getcwd(), converted_filename)
+            duration = get_audio_duration(converted_filepath)
+            
+            ### 요거 나중에 활성화 하기!! ###
+            # delete_file_from_s3(file_name)
+            # upload_file_to_s3(converted_filepath)
+            ############################
+            
+            s3ObjectUrl = get_s3_object_url(converted_filename)
+            logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
+
+            model_id = serve.get_multiplexed_model_id()
+            self.full_handle.get_model.remote(model_id)
+            self.full_handle.transcribe_audio.remote(note_id, converted_filepath)
+
+            return {
+                "noteId": note_id,
+                "filename": converted_filename,
+                "duration": duration,
+                "s3ObjectUrl": s3ObjectUrl,
+                "status": "PROCESSING"
+            }
+        except CalledProcessError as e:
+            logger.error(f"Error ffmpeg CalledProcessError {note_id} {file_name}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, file_name)
+        except FileNotFoundError as e:
+            logger.error(f"Error FileNotFoundError {note_id} {file_name}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, file_name)
+        except Exception as e:
+            logger.error(f"Error occurred! {note_id} {file_name}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, file_name)
+
+
+    def preprocessing_error(self, note_id: str, file_name: str):
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
+        converted_filepath = os.path.splitext(file_name)[0] + ".m4a"
+        if os.path.exists(converted_filepath):
+            os.remove(converted_filepath)
+
+        return {
+            "noteId": note_id,
+            "filename": file_name,
+            "duration": None,
+            "s3ObjectUrl": None,
+            "status": "PREPROCESSING_ERROR"
+        }
+
 
     @app.get('/healthy')
     def healthy(self):
@@ -142,13 +196,11 @@ class FullSTT:
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
 
 
-    def transcribe_audio(self, note_id:str, file_name:str):
+    def transcribe_audio(self, note_id:str, file_path:str):
         note_id = int(note_id)
         logger.info(f"Start transcribing note id: {note_id}")
-        download_file_from_s3(file_name)
         start_time = time()
         batch_size = 2 # reduce if low on GPU mem
-        file_path = os.path.join(os.getcwd(), file_name)
         try:
             audio = whisperx.load_audio(file_path)
 
@@ -166,25 +218,23 @@ class FullSTT:
             
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
-            data = {"noteId": note_id, "result": result}
-            httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+            result['noteId'] = note_id
+            httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-completed-on", json=result)
 
         except Exception as e:
-            logger.error(f"Error processing {note_id} {file_name}. Error: {str(e)}")
+            logger.error(f"Error processing {note_id}. Error: {str(e)}")
             if str(e) == "0":
-                # Consider error caused by "No active speech found in audio" as a successful transcription
-                # 수정필요
-                data = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
-                httpx.post(f"http://220.118.70.197:9000/asr-completed/{note_id}", json=data)
+                result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
+                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
     
             else:
                 # Inform the server about the remaining error
-                error_data = {"noteId": note_id, "message": str(e), "status":"ERROR"}
-                httpx.post(f"http://220.118.70.197:9000/asr-error/{note_id}", json=error_data)
+                result = {"noteId": note_id, "message": str(e), "status":"ERROR"}
+                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
     
         finally:
-            if os.path.exists(file_name):
-                os.remove(file_name)
+            if os.path.exists(file_path):
+                os.remove(file_path)
             gc.collect()
             cuda.empty_cache()
 

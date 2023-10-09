@@ -16,7 +16,7 @@ from services.s3_service import download_file_from_s3
 from ray.serve.handle import RayServeDeploymentHandle
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(dotenv_path="/home/team983/secret/.env")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('ray.serve')

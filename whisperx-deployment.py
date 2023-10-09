@@ -58,10 +58,9 @@ class APIIngress:
         download_file_from_s3(file_name)
         og_filepath = os.path.join(os.getcwd(), file_name)
         try:
-            converted_filename = convert_to_m4a(og_filepath)
+            converted_filepath = convert_to_m4a(og_filepath)
             if os.path.exists(og_filepath):
                 os.remove(og_filepath)
-            converted_filepath = os.path.join(os.getcwd(), converted_filename)
             duration = get_audio_duration(converted_filepath)
             
             ### 요거 나중에 활성화 하기!! ###
@@ -69,7 +68,7 @@ class APIIngress:
             # upload_file_to_s3(converted_filepath)
             ############################
 
-            s3ObjectUrl = get_s3_object_url(converted_filename)
+            s3ObjectUrl = get_s3_object_url(converted_filepath)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
             model_id = serve.get_multiplexed_model_id()
@@ -78,7 +77,7 @@ class APIIngress:
 
             return {
                 "noteId": note_id,
-                "filename": converted_filename,
+                "filename": converted_filepath,
                 "duration": duration,
                 "s3ObjectUrl": s3ObjectUrl,
                 "status": "PROCESSING"

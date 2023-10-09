@@ -69,7 +69,7 @@ socket.on('open', () => {
     }
 
     const audioArray = new Uint8Array(audioData);; // 실제 오디오 데이터를 배열로 대체해야 합니다.
-    repeatSend(1, audioArray);
+    repeatSend(10, audioArray);
 
     console.log('Blob 데이터를 성공적으로 보냈습니다.');
 

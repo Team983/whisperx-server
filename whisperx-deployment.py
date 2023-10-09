@@ -56,7 +56,8 @@ class APIIngress:
         request = json.loads(request)
         file_name = request.get("file_name")
         download_file_from_s3(file_name)
-        og_filepath = os.path.join(os.getcwd(), file_name)
+        og_filepath = file_name
+        # og_filepath = os.path.join(os.getcwd(), file_name)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)

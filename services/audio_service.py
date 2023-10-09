@@ -10,7 +10,7 @@ def convert_to_m4a(og_filepath: str) -> str:
         return og_filepath
 
     converted_filepath = os.path.splitext(og_filepath)[0] + ".m4a"
-    command = ["ffmpeg", "-y", "-i", og_filepath, "-c:a", "aac", converted_filepath]
+    command = ["ffmpeg", "-i", og_filepath, "-c:a", "aac", converted_filepath]
     subprocess.run(command, check=True)
     return converted_filepath
 

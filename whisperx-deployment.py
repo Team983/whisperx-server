@@ -19,11 +19,6 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
-
-from load_dotenv import load_dotenv
-load_dotenv(dotenv_path='/home/team983/secret/.env')
-
-
 app = FastAPI()
 
 @serve.deployment
@@ -34,6 +29,7 @@ class APIIngress:
         self.full_handle=full_handle.options(use_new_handle_api=True)
         self.LIVE_UPLOAD_DIR = 'live'
         os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
+
 
 
     @app.websocket("/live")
@@ -61,8 +57,8 @@ class APIIngress:
         request = json.loads(request)
         og_filename = request.get("file_name")
         download_file_from_s3(og_filename)
-        og_filepath = og_filename
-        # og_filepath = os.path.join(os.getcwd(), file_name)
+        # og_filepath = og_filename
+        og_filepath = os.path.join(os.getcwd(), og_filename)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)
@@ -186,7 +182,7 @@ class FullSTT:
 
         self.device = "cuda" if cuda.is_available() else "cpu"
         self.diarize_model = whisperx.DiarizationPipeline(use_auth_token=os.getenv("HF_API_KEY"), device=self.device)
-
+      
 
     @serve.multiplexed(max_num_models_per_replica=1)
     async def get_model(self, model_id):

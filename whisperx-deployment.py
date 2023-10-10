@@ -6,6 +6,7 @@ import logging
 import httpx
 import huggingface_hub
 import requests
+import numpy as np
 from time import time
 from starlette.requests import Request
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -19,8 +20,8 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
-# from dotenv import load_dotenv
-# load_dotenv(dotenv_path='/home/team983/secret/.env')
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='/home/team983/secret/.env')
 
 app = FastAPI()
 
@@ -76,13 +77,16 @@ class APIIngress:
             # 실제 deploy 할떄는 아래 코드 삭제하기
             upload_file_to_s3(converted_filepath)
             delete_file_from_s3(converted_filepath)
-
+            
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
+            audio = whisperx.load_audio(converted_filepath)
             model_id = serve.get_multiplexed_model_id()
             self.full_handle.get_model.remote(model_id)
-            self.full_handle.transcribe_audio.remote(note_id, converted_filepath)
+            self.full_handle.transcribe_audio.remote(note_id, audio)
+            if os.path.exists(converted_filepath):
+                os.remove(converted_filepath)
 
             return {
                 "noteId": note_id,
@@ -200,14 +204,12 @@ class FullSTT:
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
 
 
-    def transcribe_audio(self, note_id:str, file_path:str):
+    def transcribe_audio(self, note_id:str, audio:np.ndarray):
         note_id = int(note_id)
         logger.info(f"Start transcribing note id: {note_id}")
         start_time = time()
         batch_size = 2 # reduce if low on GPU mem
         try:
-            audio = whisperx.load_audio(file_path)
-
             # 1. Transcribe with faster-whisper (batched)
             result = self.asr_model.transcribe(audio, batch_size=batch_size)
             transcription_end_time = time()
@@ -237,8 +239,8 @@ class FullSTT:
                 httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
     
         finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            # if os.path.exists(file_path):
+            #     os.remove(file_path)
             gc.collect()
             cuda.empty_cache()
 

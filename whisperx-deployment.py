@@ -19,6 +19,11 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
+
+from load_dotenv import load_dotenv
+load_dotenv(dotenv_path='/home/team983/secret/.env')
+
+
 app = FastAPI()
 
 @serve.deployment
@@ -54,9 +59,9 @@ class APIIngress:
     async def full_stt(self, note_id:str, request: Request) -> Dict:
         request = await request.json()
         request = json.loads(request)
-        file_name = request.get("file_name")
-        download_file_from_s3(file_name)
-        og_filepath = file_name
+        og_filename = request.get("file_name")
+        download_file_from_s3(og_filename)
+        og_filepath = og_filename
         # og_filepath = os.path.join(os.getcwd(), file_name)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
@@ -64,12 +69,8 @@ class APIIngress:
             if os.path.exists(og_filepath):
                 os.remove(og_filepath)
             duration = get_audio_duration(converted_filepath)
-            
-            ### 요거 나중에 활성화 하기!! ###
-            # delete_file_from_s3(file_name)
-            # upload_file_to_s3(converted_filepath)
-            ############################
-
+            delete_file_from_s3(og_filename)
+            upload_file_to_s3(converted_filepath)
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
@@ -85,14 +86,14 @@ class APIIngress:
                 "status": "PROCESSING"
             }
         except CalledProcessError as e:
-            logger.error(f"Error ffmpeg CalledProcessError {note_id} {file_name}. Error: {str(e)}")
-            return self.preprocessing_error(note_id, file_name)
+            logger.error(f"Error ffmpeg CalledProcessError {note_id} {og_filename}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, og_filename)
         except FileNotFoundError as e:
-            logger.error(f"Error FileNotFoundError {note_id} {file_name}. Error: {str(e)}")
-            return self.preprocessing_error(note_id, file_name)
+            logger.error(f"Error FileNotFoundError {note_id} {og_filename}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, og_filename)
         except Exception as e:
-            logger.error(f"Error occurred! {note_id} {file_name}. Error: {str(e)}")
-            return self.preprocessing_error(note_id, file_name)
+            logger.error(f"Error occurred! {note_id} {og_filename}. Error: {str(e)}")
+            return self.preprocessing_error(note_id, og_filename)
 
 
     def preprocessing_error(self, note_id: str, file_name: str):

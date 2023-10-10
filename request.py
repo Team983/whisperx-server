@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-file_name = {"file_name":"2023-08-07T02:54:38.350820519_audio-756-yorkie.webm"}
+file_name = {"file_name":"2023-08-25T01:23:25.994102873_(831).webm"}
 # answer = requests.post("http://localhost:8081/asr/1", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": "large-v2"})
 # answer = requests.post("http://localhost:8000/asr/1", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": str("GENERAL")})
 time.sleep(1)

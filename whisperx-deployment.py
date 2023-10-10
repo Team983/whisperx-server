@@ -31,7 +31,6 @@ class APIIngress:
         os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
 
 
-
     @app.websocket("/live")
     async def live_stt(self, ws: WebSocket) -> None:
         await ws.accept()
@@ -57,8 +56,8 @@ class APIIngress:
         request = json.loads(request)
         og_filename = request.get("file_name")
         download_file_from_s3(og_filename)
-        # og_filepath = og_filename
-        og_filepath = os.path.join(os.getcwd(), og_filename)
+        og_filepath = og_filename
+        # og_filepath = os.path.join(os.getcwd(), og_filename)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)

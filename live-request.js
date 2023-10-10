@@ -6,10 +6,7 @@ const WebSocket = require('ws');
 // /home/team983/server/data/audio/example_5.mov
 // /home/team983/server/data/audio/example_15.m4a
 // /home/team983/server/data/audio/example_30.wav
-const audioFilePath = '/home/team983/server/data/audio/example_30.wav';
-
-// 사용자 이름 설정
-const userId = "yongchan";
+const audioFilePath = '/home/team983/server/data/audio/example_1.wav';
 
 // WebSocket 서버 URL로 대체해야 합니다.
 const serverUrl = "ws://220.118.70.197:8000/live";
@@ -69,7 +66,7 @@ socket.on('open', () => {
     }
 
     const audioArray = new Uint8Array(audioData);; // 실제 오디오 데이터를 배열로 대체해야 합니다.
-    repeatSend(10, audioArray);
+    repeatSend(20, audioArray);
 
     console.log('Blob 데이터를 성공적으로 보냈습니다.');
 
@@ -101,5 +98,5 @@ function repeatSend(count, audioArray) {
   setTimeout(() => {
     console.log(`작업 ${count} 완료`);
     repeatSend(count - 1, audioArray); // 다음 반복 작업 시작
-  }, 1000); 
+  }, 2000); 
 }

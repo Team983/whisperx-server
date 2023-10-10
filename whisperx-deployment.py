@@ -19,6 +19,9 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
+# from dotenv import load_dotenv
+# load_dotenv(dotenv_path='/home/team983/secret/.env')
+
 app = FastAPI()
 
 @serve.deployment
@@ -28,7 +31,9 @@ class APIIngress:
         self.live_handle=live_handle.options(use_new_handle_api=True)
         self.full_handle=full_handle.options(use_new_handle_api=True)
         self.LIVE_UPLOAD_DIR = 'live'
+        self.FULL_UPLOAD_DIR = 'full'
         os.makedirs(self.LIVE_UPLOAD_DIR, exist_ok=True)
+        os.makedirs(self.FULL_UPLOAD_DIR, exist_ok=True)
 
 
     @app.websocket("/live")
@@ -39,7 +44,7 @@ class APIIngress:
                 audio_data = await ws.receive_bytes()
                 if audio_data:
                     request_time = time()
-                    file_name = os.path.join(self.LIVE_UPLOAD_DIR, f'audio_file_{request_time}.bin')
+                    file_name = os.path.join(os.getcwd(), self.LIVE_UPLOAD_DIR, f'audio_file_{request_time}.bin')
                     with open(file_name, "wb") as f:
                         f.write(audio_data)
                     response = self.live_handle.transcribe_audio.remote(file_name)
@@ -55,17 +60,23 @@ class APIIngress:
         request = await request.json()
         request = json.loads(request)
         og_filename = request.get("file_name")
-        download_file_from_s3(og_filename)
-        og_filepath = og_filename
-        # og_filepath = os.path.join(os.getcwd(), og_filename)
+        og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
+        download_file_from_s3(og_filepath)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)
             if os.path.exists(og_filepath):
                 os.remove(og_filepath)
             duration = get_audio_duration(converted_filepath)
-            delete_file_from_s3(og_filename)
+
+            # 실제 deploy 할떄는 아래 코드 활성화하기
+            # delete_file_from_s3(og_filename)
+            # upload_file_to_s3(converted_filepath)
+            
+            # 실제 deploy 할떄는 아래 코드 삭제하기
             upload_file_to_s3(converted_filepath)
+            delete_file_from_s3(converted_filepath)
+
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
@@ -131,16 +142,15 @@ class LiveSTT:
             result = self.asr_model.transcribe(audio, batch_size=batch_size)           
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
-            result['status'] = True
 
         except Exception as e:
             logger.error(f"Error processing {file_name}. Error: {str(e)}")
             if str(e) == "0":
-                result = {"message": "No active speech found in audio", "status":False}
+                result = {"message": "No active speech found in audio", "status":"ERROR"}
     
             else:
                 # Inform the server about the remaining error
-                result = {"message": str(e), "status":False}
+                result = {"message": str(e), "status":"ERROR"}
     
         finally:
             if os.path.exists(file_name):

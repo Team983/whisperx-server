@@ -14,9 +14,9 @@ s3 = boto3.client(
     region_name=AWS_REGION
 )
 
-def download_file_from_s3(filename: str):
-    with open(filename, 'wb') as f:
-        s3.download_fileobj(BUCKET_NAME, filename, f)
+def download_file_from_s3(filepath: str):
+    with open(filepath, 'wb') as f:
+        s3.download_fileobj(BUCKET_NAME, os.path.basename(filepath), f)
 
 def delete_file_from_s3(filename: str):
     s3.delete_object(Bucket=BUCKET_NAME, Key=filename)

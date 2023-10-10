@@ -49,7 +49,7 @@ class APIIngress:
         return {"result" : ["healthy"]}
     
 
-@ray.serve.deployment(ray_actor_options={"num_cpus":6, "num_gpus": 0.2})
+@ray.serve.deployment(ray_actor_options={"num_gpus": 0.2})
 class WhisperxDeployment:
 
     def __init__(self):

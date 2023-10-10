@@ -20,8 +20,8 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
-from dotenv import load_dotenv
-load_dotenv(dotenv_path='/home/team983/secret/.env')
+# from dotenv import load_dotenv
+# load_dotenv(dotenv_path='/home/team983/secret/.env')
 
 app = FastAPI()
 

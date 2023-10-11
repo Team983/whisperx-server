@@ -4,7 +4,10 @@ import os
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION")
+
+# 실제 deploy 할떄는 아래 코드 활성화하기
 # BUCKET_NAME = 'synnote-record-bucket'
+
 BUCKET_NAME = 'synnote-whisperx-server'
 
 

@@ -71,8 +71,10 @@ class APIIngress:
             duration = get_audio_duration(converted_filepath)
 
             # 실제 deploy 할떄는 아래 코드 활성화하기
-            # delete_file_from_s3(og_filename)
-            # upload_file_to_s3(converted_filepath)
+            '''
+            delete_file_from_s3(og_filename)
+            upload_file_to_s3(converted_filepath)
+            '''
             
             # 실제 deploy 할떄는 아래 코드 삭제하기
             upload_file_to_s3(converted_filepath)
@@ -143,7 +145,8 @@ class LiveSTT:
         batch_size = 1 
         try:
             audio = whisperx.load_audio(file_name)
-            result = self.asr_model.transcribe(audio, batch_size=batch_size)           
+            result = self.asr_model.transcribe(audio, batch_size=batch_size)
+            result["status"] = "SUCCESS"           
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
 

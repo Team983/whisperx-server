@@ -22,7 +22,7 @@ error_request_dict = dict()
 total_completed = 0
 total_error = 0
 
-@app.post("/api/v1/note/asr-completed-on")
+@app.post("/api/v1/note/whisperx-asr-completed")
 async def PostCompleteRequest(request:CompleteRequest):
     global complete_request_dict
     global total_completed
@@ -44,7 +44,7 @@ async def PostErrorRequest(request:ErrorRequest):
     return JSONResponse(request_dict)
 
 
-@app.get("/api/v1/note/asr-completed-on/{note_id}")
+@app.get("/api/v1/note/whisperx-asr-completed/{note_id}")
 async def GetCompleteRequest(note_id:str):
     try:
         return JSONResponse(complete_request_dict[note_id])

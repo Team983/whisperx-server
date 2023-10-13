@@ -228,18 +228,18 @@ class FullSTT:
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
             result['noteId'] = note_id
-            httpx.post(f"http://220.118.70.197:8000/api/v1/note/whisperx-asr-completed", json=result)
+            httpx.post(f"http://220.118.70.197:9000/api/v1/note/whisperx-asr-completed", json=result)
 
         except Exception as e:
             logger.error(f"Error processing {note_id}. Error: {str(e)}")
             if str(e) == "0":
                 result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
-                httpx.post(f"http://220.118.70.197:8000/api/v1/note/asr-error", json=result)
+                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
     
             else:
                 # Inform the server about the remaining error
                 result = {"noteId": note_id, "message": str(e), "status":"ERROR"}
-                httpx.post(f"http://220.118.70.197:8000/api/v1/note/asr-error", json=result)
+                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
     
         finally:
             del audio

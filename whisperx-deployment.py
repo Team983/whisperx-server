@@ -60,6 +60,7 @@ class APIIngress:
     async def full_stt(self, note_id:str, request: Request) -> Dict:
         request = await request.json()
         request = json.loads(request)
+        note_id = int(note_id)
         og_filename = request.get("file_name")
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
         download_file_from_s3(og_filepath)
@@ -108,7 +109,7 @@ class APIIngress:
             return self.preprocessing_error(note_id, og_filename)
 
 
-    def preprocessing_error(self, note_id: str, file_name: str):
+    def preprocessing_error(self, note_id: int, file_name: str):
         if os.path.exists(file_name):
             os.remove(file_name)
 
@@ -207,8 +208,7 @@ class FullSTT:
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
 
 
-    def transcribe_audio(self, note_id:str, audio:np.ndarray):
-        note_id = int(note_id)
+    def transcribe_audio(self, note_id:int, audio:np.ndarray):
         logger.info(f"Start transcribing note id: {note_id}")
         start_time = time()
         batch_size = 2 # reduce if low on GPU mem
@@ -228,22 +228,22 @@ class FullSTT:
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
             result['noteId'] = note_id
-            httpx.post(f"http://220.118.70.197:9000/api/v1/note/whisperx-asr-completed", json=result)
+            httpx.post(f"http://127.0.0.1:8000/api/v1/note/whisperx-asr-completed", json=result)
 
         except Exception as e:
             logger.error(f"Error processing {note_id}. Error: {str(e)}")
             if str(e) == "0":
                 result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
-                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
+                httpx.post(f"http://127.0.0.1:8000/api/v1/note/asr-error", json=result)
     
             else:
                 # Inform the server about the remaining error
                 result = {"noteId": note_id, "message": str(e), "status":"ERROR"}
-                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
+                httpx.post(f"http://127.0.0.1:8000/api/v1/note/asr-error", json=result)
     
         finally:
-            # if os.path.exists(file_path):
-            #     os.remove(file_path)
+            del audio
+            del result
             gc.collect()
             cuda.empty_cache()
 

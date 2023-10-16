@@ -100,7 +100,9 @@ class APIIngress:
 
             # Original code
             model_id = serve.get_multiplexed_model_id()
-            await self.full_handle.get_model.remote(model_id)
+            logger.info('model id:')
+            logger.info(model_id)
+            self.full_handle.get_model.remote(model_id)
             self.full_handle.transcribe_audio.remote(note_id, audio)
 
             # Modified code

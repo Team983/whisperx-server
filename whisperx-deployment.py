@@ -69,6 +69,8 @@ class APIIngress:
     async def full_stt(self, note_id:str, request: Request) -> Dict:
         request = await request.json()
         note_id = int(note_id)
+        if type(request) != dict:
+            request = json.loads(request)
         og_filename = request.get("file_name")
         print(f'Received filename: {og_filename}')
         logger.info(f'Received filename: {og_filename}')
@@ -258,5 +260,3 @@ class FullSTT:
 live_stt = LiveSTT.bind()
 full_stt = FullSTT.bind()
 entrypoint = APIIngress.bind(live_stt, full_stt)
-
-# serve.start(http_options={"ssl_context": ssl_context, "host":"0.0.0.0"})

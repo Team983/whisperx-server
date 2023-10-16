@@ -2,9 +2,9 @@ import requests
 import json
 import time
 
-file_name = {"file_name":"2023-09-19T08-22-20.893072774_(1209).webm"}
+file_name = {"file_name":"6d54f4ed-0246-427e-b8f1-8bd020fd41eb"}
 # answer = requests.post("http://localhost:8081/asr/1", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": "large-v2"})
-answer = requests.post("https://team983.site:8000/asr/1", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": str("GENERAL")})
+answer = requests.post("http://team983.site:8000/asr/1", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": str("GENERAL")})
 # time.sleep(1)
 # answer = requests.post("http://localhost:8000/asr/2", json=json.dumps(file_name), headers={"serve_multiplexed_model_id": str("IT")})
 # time.sleep(1)

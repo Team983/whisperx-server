@@ -94,9 +94,20 @@ class APIIngress:
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
             audio = whisperx.load_audio(converted_filepath)
-            model_id = await serve.get_multiplexed_model_id()
-            self.full_handle.get_model.remote(model_id)
+
+            logger.info('Received request:')
+            logger.info(request)
+
+            # Original code
+            model_id = serve.get_multiplexed_model_id()
+            await self.full_handle.get_model.remote(model_id)
             self.full_handle.transcribe_audio.remote(note_id, audio)
+
+            # Modified code
+            # model_id = serve.get_multiplexed_model_id()
+            # self.full_handle.options(multiplexed_model_id=)get_model.remote(model_id)
+            # self.full_handle.transcribe_audio.remote(note_id, audio)
+            ######################
             if os.path.exists(converted_filepath):
                 os.remove(converted_filepath)
             

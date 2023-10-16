@@ -20,8 +20,17 @@ from subprocess import CalledProcessError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
+##########
 # from dotenv import load_dotenv
 # load_dotenv(dotenv_path='/home/team983/secret/.env')
+
+# import ssl
+# import ray
+# ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+# ssl_context.load_cert_chain(certfile="/home/team983/secret/cert.pem", keyfile="/home/team983/secret/key.pem")
+# logger.info('didkcidici')
+# logger.info(ssl_context)
+##########
 
 app = FastAPI()
 
@@ -71,15 +80,12 @@ class APIIngress:
                 os.remove(og_filepath)
             duration = get_audio_duration(converted_filepath)
 
-            # 실제 deploy 할떄는 아래 코드 활성화하기
-            '''
             delete_file_from_s3(og_filename)
             upload_file_to_s3(converted_filepath)
-            '''
             
             # 실제 deploy 할떄는 아래 코드 삭제하기
-            upload_file_to_s3(converted_filepath)
-            delete_file_from_s3(converted_filepath)
+            # upload_file_to_s3(converted_filepath)
+            # delete_file_from_s3(converted_filepath)
             
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
@@ -163,6 +169,7 @@ class LiveSTT:
         finally:
             if os.path.exists(file_name):
                 os.remove(file_name)
+            del audio
             gc.collect()
             cuda.empty_cache()
             return result
@@ -228,18 +235,18 @@ class FullSTT:
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
             result['noteId'] = note_id
-            httpx.post(f"http://220.118.70.197:9000/api/v1/note/whisperx-asr-completed", json=result)
+            httpx.post(f"https://dev.synnote.com/api/v1/note/whisperx-asr-completed", json=result)
 
         except Exception as e:
             logger.error(f"Error processing {note_id}. Error: {str(e)}")
             if str(e) == "0":
                 result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
-                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
+                httpx.post(f"https://dev.synnote.com/api/v1/note/asr-error", json=result)
     
             else:
                 # Inform the server about the remaining error
                 result = {"noteId": note_id, "message": str(e), "status":"ERROR"}
-                httpx.post(f"http://220.118.70.197:9000/api/v1/note/asr-error", json=result)
+                httpx.post(f"https://dev.synnote.com/api/v1/note/asr-error", json=result)
     
         finally:
             del audio
@@ -251,4 +258,4 @@ live_stt = LiveSTT.bind()
 full_stt = FullSTT.bind()
 entrypoint = APIIngress.bind(live_stt, full_stt)
 
-
+# serve.start(http_options={"ssl_context": ssl_context, "host":"0.0.0.0"})

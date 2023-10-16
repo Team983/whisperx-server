@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, Union
@@ -68,5 +69,4 @@ async def GetNumberCompleted():
 @app.get('/number_error')
 async def GetNumberError():
     return JSONResponse({"number_error": total_error})
-
 

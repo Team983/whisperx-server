@@ -9,7 +9,7 @@ const WebSocket = require('ws');
 const audioFilePath = '/home/team983/server/data/audio/example_30.wav';
 
 // WebSocket 서버 URL로 대체해야 합니다.
-const serverUrl = "ws://220.118.70.197:8000/live";
+const serverUrl = "wss://team983.site:8000/live";
 
 // WebSocket 연결
 const socket = new WebSocket(serverUrl);

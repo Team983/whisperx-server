@@ -68,9 +68,9 @@ class APIIngress:
     @app.post("/asr/{note_id}", status_code=202)
     async def full_stt(self, note_id:str, request: Request) -> Dict:
         request = await request.json()
-        request = json.loads(request)
         note_id = int(note_id)
         og_filename = request.get("file_name")
+        print(f'Received filename: {og_filename}')
         logger.info(f'Received filename: {og_filename}')
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
         download_file_from_s3(og_filepath)

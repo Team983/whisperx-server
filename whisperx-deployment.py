@@ -241,7 +241,7 @@ class FullSTT:
         except Exception as e:
             logger.error(f"Error processing {note_id}. Error: {str(e)}")
             if str(e) == "0":
-                result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_EROOR"}
+                result = {"noteId": note_id, "message": "No active speech found in audio", "status":"NO_SPEECH_ERROR"}
                 httpx.post(f"https://dev.synnote.com/api/v1/note/asr-error", json=result)
     
             else:

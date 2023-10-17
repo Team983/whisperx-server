@@ -64,9 +64,9 @@ class APIIngress:
         note_id = int(note_id)
         if type(request) != dict:
             request = json.loads(request)
-        og_filename = request.get("file_name")
-        print(f'Received filename: {og_filename}')
-        logger.info(f'Received filename: {og_filename}')
+        og_filename = request.get("filename")
+        print(f'Received file name: {og_filename}')
+        logger.info(f'Received file name: {og_filename}')
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
         download_file_from_s3(og_filepath)
         try:
@@ -90,10 +90,8 @@ class APIIngress:
             #######################
 
             # Modified code
-            model_type = request.get('model_type')
+            model_type = request.get('category')
             model_id = await self.full_handle.get_model_id.options(multiplexed_model_id=model_type).remote()
-            logger.info('model id:')
-            logger.info(model_id)
             self.full_handle.get_model.remote(model_id)
             ###########
 

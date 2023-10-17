@@ -23,13 +23,6 @@ logger = logging.getLogger("ray.serve")
 ##########
 # from dotenv import load_dotenv
 # load_dotenv(dotenv_path='/home/team983/secret/.env')
-
-# import ssl
-# import ray
-# ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-# ssl_context.load_cert_chain(certfile="/home/team983/secret/cert.pem", keyfile="/home/team983/secret/key.pem")
-# logger.info('didkcidici')
-# logger.info(ssl_context)
 ##########
 
 app = FastAPI()
@@ -67,16 +60,8 @@ class APIIngress:
 
     @app.post("/asr/{note_id}", status_code=202)
     async def full_stt(self, note_id:str, request: Request) -> Dict:
-        # Modified code
-        model_id = serve.get_multiplexed_model_id()
-        logger.info('model id:')
-        logger.info(model_id)
-        self.full_handle.get_model.remote(model_id)
-        ###########
-
         request = await request.json()
         note_id = int(note_id)
-        
         if type(request) != dict:
             request = json.loads(request)
         og_filename = request.get("file_name")
@@ -94,30 +79,27 @@ class APIIngress:
             delete_file_from_s3(og_filename)
             upload_file_to_s3(converted_filepath)
             
-            # 실제 deploy 할떄는 아래 코드 삭제하기
-            # upload_file_to_s3(converted_filepath)
-            # delete_file_from_s3(converted_filepath)
-            
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
-
-            audio = whisperx.load_audio(converted_filepath)
-
-            logger.info('Received request:')
-            logger.info(request)
 
             # Original code
             # model_id = serve.get_multiplexed_model_id()
             # logger.info('model id:')
             # logger.info(model_id)
             # self.full_handle.get_model.remote(model_id)
-            self.full_handle.transcribe_audio.remote(note_id, audio)
+            #######################
 
             # Modified code
-            # model_id = serve.get_multiplexed_model_id()
-            # self.full_handle.options(multiplexed_model_id=)get_model.remote(model_id)
-            # self.full_handle.transcribe_audio.remote(note_id, audio)
-            ######################
+            model_type = request.get('model_type')
+            model_id = await self.full_handle.get_model_id.options(multiplexed_model_id=model_type).remote()
+            logger.info('model id:')
+            logger.info(model_id)
+            self.full_handle.get_model.remote(model_id)
+            ###########
+
+            audio = whisperx.load_audio(converted_filepath)
+            self.full_handle.transcribe_audio.remote(note_id, audio)
+
             if os.path.exists(converted_filepath):
                 os.remove(converted_filepath)
             
@@ -239,6 +221,9 @@ class FullSTT:
         self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
 
 
+    def get_model_id(self):
+        return serve.get_multiplexed_model_id()
+    
     def transcribe_audio(self, note_id:int, audio:np.ndarray):
         logger.info(f"Start transcribing note id: {note_id}")
         start_time = time()

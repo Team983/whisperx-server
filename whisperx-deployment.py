@@ -67,8 +67,16 @@ class APIIngress:
 
     @app.post("/asr/{note_id}", status_code=202)
     async def full_stt(self, note_id:str, request: Request) -> Dict:
+        # Modified code
+        model_id = serve.get_multiplexed_model_id()
+        logger.info('model id:')
+        logger.info(model_id)
+        self.full_handle.get_model.remote(model_id)
+        ###########
+
         request = await request.json()
         note_id = int(note_id)
+        
         if type(request) != dict:
             request = json.loads(request)
         og_filename = request.get("file_name")
@@ -99,10 +107,10 @@ class APIIngress:
             logger.info(request)
 
             # Original code
-            model_id = serve.get_multiplexed_model_id()
-            logger.info('model id:')
-            logger.info(model_id)
-            self.full_handle.get_model.remote(model_id)
+            # model_id = serve.get_multiplexed_model_id()
+            # logger.info('model id:')
+            # logger.info(model_id)
+            # self.full_handle.get_model.remote(model_id)
             self.full_handle.transcribe_audio.remote(note_id, audio)
 
             # Modified code

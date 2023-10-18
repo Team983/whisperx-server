@@ -161,13 +161,11 @@ class LiveSTT:
                 # Inform the server about the remaining error
                 result = {"message": str(e), "status":"ERROR"}
     
-        finally:
-            if os.path.exists(file_name):
-                os.remove(file_name)
-            del audio
-            gc.collect()
-            cuda.empty_cache()
-            return result
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        gc.collect()
+        cuda.empty_cache()
+        return result
 
 
 @serve.deployment
@@ -233,7 +231,7 @@ class FullSTT:
             end_time = time()
             logger.info(f"Total time taken: {end_time - start_time}")
             result['noteId'] = note_id
-            httpx.post(f"https://dev.synnote.com/api/v1/note/whisperx-asr-completed", json=result)
+            response = httpx.post(f"https://dev.synnote.com/api/v1/note/whisperx-asr-completed", json=result)
 
         except Exception as e:
             logger.error(f"Error processing {note_id}. Error: {str(e)}")
@@ -246,10 +244,9 @@ class FullSTT:
                 result = {"noteId": note_id, "message": str(e), "status":"ERROR"}
                 httpx.post(f"https://dev.synnote.com/api/v1/note/asr-error", json=result)
     
-        finally:
-            gc.collect()
-            cuda.empty_cache()
-            logger.info(f'NoteId:{note_id} successfully posted!')
+        gc.collect()
+        cuda.empty_cache()
+        logger.info(f'NoteId:{note_id} response: {response}')
 
 live_stt = LiveSTT.bind()
 full_stt = FullSTT.bind()

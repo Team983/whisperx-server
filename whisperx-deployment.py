@@ -82,18 +82,9 @@ class APIIngress:
             s3ObjectUrl = get_s3_object_url(converted_filename)
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
-            # Original code
-            # model_id = serve.get_multiplexed_model_id()
-            # logger.info('model id:')
-            # logger.info(model_id)
-            # self.full_handle.get_model.remote(model_id)
-            #######################
-
-            # Modified code
             model_type = request.get('category')
             model_id = await self.full_handle.get_model_id.options(multiplexed_model_id=model_type).remote()
             self.full_handle.get_model.remote(model_id)
-            ###########
 
             audio = whisperx.load_audio(converted_filepath)
             self.full_handle.transcribe_audio.remote(note_id, audio)
@@ -256,10 +247,9 @@ class FullSTT:
                 httpx.post(f"https://dev.synnote.com/api/v1/note/asr-error", json=result)
     
         finally:
-            del audio
-            del result
             gc.collect()
             cuda.empty_cache()
+            logger.info(f'NoteId:{note_id} successfully posted!')
 
 live_stt = LiveSTT.bind()
 full_stt = FullSTT.bind()

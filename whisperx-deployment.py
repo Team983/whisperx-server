@@ -60,6 +60,7 @@ class APIIngress:
 
     @app.post("/asr/{note_id}", status_code=202)
     async def full_stt(self, note_id:str, request: Request) -> Dict:
+        gc.collect()
         request = await request.json()
         note_id = int(note_id)
         if type(request) != dict:
@@ -83,11 +84,8 @@ class APIIngress:
             logger.info('Original: %s, Converted to m4a at: %s, Duration: %f', og_filepath, converted_filepath, duration)
 
             model_type = request.get('category')
-            model_id = await self.full_handle.get_model_id.options(multiplexed_model_id=model_type).remote()
-            self.full_handle.get_model.remote(model_id)
-
             audio = whisperx.load_audio(converted_filepath)
-            self.full_handle.transcribe_audio.remote(note_id, audio)
+            self.full_handle.transcribe_audio.remote(model_type, note_id, audio)
 
             if os.path.exists(converted_filepath):
                 os.remove(converted_filepath)
@@ -204,33 +202,43 @@ class FullSTT:
 
     @serve.multiplexed(max_num_models_per_replica=1)
     async def get_model(self, model_id):
-        logger.info(f"Loading model {model_id}")
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
-        self.asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
+        asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)
+        return asr_model
 
 
-    def get_model_id(self):
-        return serve.get_multiplexed_model_id()
+    def assign_new_speakers(self, result):
+        speakers = list(set([segment['speaker'] for segment in result['segments']]))
+        new_speakers = {}
+        for i in range(1, len(speakers)+1):
+            new_speakers[speakers[i-1]] = f'발화자 {i}'
+
+        for segment in result['segments']:
+            segment['speaker'] = new_speakers[segment['speaker']]
+        return result
     
-    def transcribe_audio(self, note_id:int, audio:np.ndarray):
+
+    async def transcribe_audio(self, model_type:str, note_id:int, audio:np.ndarray):
+        asr_model = await self.get_model(model_type)
         logger.info(f"Start transcribing note id: {note_id}")
         start_time = time()
         batch_size = 2 # reduce if low on GPU mem
         try:
             # 1. Transcribe with faster-whisper (batched)
-            result = self.asr_model.transcribe(audio, batch_size=batch_size)
+            result = asr_model.transcribe(audio, batch_size=batch_size)
             transcription_end_time = time()
-            logger.info(f'Total time taken for transcription: {transcription_end_time-start_time}')
+            logger.info(f'Time taken for transcription: {transcription_end_time-start_time}')
 
             # 2. Assign speaker labels
             diarize_start_time = time()
             diarize_segments = self.diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, result)
+            result = self.assign_new_speakers(result)
             diarize_end_time = time()
-            logger.info(f'Total time taken for diarization: {diarize_end_time-diarize_start_time}')
+            logger.info(f'Time taken for diarization: {diarize_end_time-diarize_start_time}')
             
             end_time = time()
-            logger.info(f"Total time taken: {end_time - start_time}")
+            logger.info(f"Time taken for transcription and diarization: {end_time - start_time}")
             result['noteId'] = note_id
             response = httpx.post(f"https://dev.synnote.com/api/v1/note/whisperx-asr-completed", json=result)
 

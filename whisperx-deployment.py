@@ -208,7 +208,12 @@ class FullSTT:
 
 
     def assign_new_speakers(self, result):
-        speakers = list(set([segment['speaker'] for segment in result['segments']]))
+        
+        speakers = []
+        for segment in result['segments']:
+            speaker = segment['speaker']
+            if speaker not in speakers:
+                speakers.append(speaker)
         new_speakers = {}
         for i in range(1, len(speakers)+1):
             new_speakers[speakers[i-1]] = f'발화자 {i}'

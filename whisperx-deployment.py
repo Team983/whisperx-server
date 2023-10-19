@@ -60,7 +60,6 @@ class APIIngress:
 
     @app.post("/asr/{note_id}", status_code=202)
     async def full_stt(self, note_id:str, request: Request) -> Dict:
-        gc.collect()
         request = await request.json()
         note_id = int(note_id)
         if type(request) != dict:
@@ -208,7 +207,6 @@ class FullSTT:
 
 
     def assign_new_speakers(self, result):
-        
         speakers = []
         for segment in result['segments']:
             speaker = segment['speaker']

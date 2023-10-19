@@ -200,7 +200,7 @@ class FullSTT:
         self.diarize_model = whisperx.DiarizationPipeline(use_auth_token=os.getenv("HF_API_KEY"), device=self.device)
       
 
-    @serve.multiplexed(max_num_models_per_replica=1)
+    @serve.multiplexed(max_num_models_per_replica=2)
     async def get_model(self, model_id):
         compute_type = "int8" # change to "int8" if low on GPU mem (may reduce accuracy)
         asr_model = whisperx.load_model(self._MODELS.get(model_id), self.device, language='ko', compute_type=compute_type)

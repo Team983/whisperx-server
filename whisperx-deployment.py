@@ -135,7 +135,7 @@ class LiveSTT:
     def __init__(self):
         device = 'cuda' if cuda.is_available() else 'cpu'
         compute_type = 'int8'
-        self.asr_model = whisperx.load_model('small', device, language='ko', compute_type=compute_type)
+        self.asr_model = whisperx.load_model('medium', device, language='ko', compute_type=compute_type)
 
 
     def transcribe_audio(self, file_name:str):

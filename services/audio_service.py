@@ -6,8 +6,8 @@ logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 def convert_to_m4a(og_filepath: str) -> str:
-    if os.path.splitext(og_filepath)[1] == '.m4a':
-        return og_filepath
+    # if os.path.splitext(og_filepath)[1] == '.m4a':
+    #     return og_filepath
 
     converted_filepath = os.path.splitext(og_filepath)[0] + ".m4a"
     command = ["ffmpeg", "-y", "-i", og_filepath, "-c:a", "aac", converted_filepath]

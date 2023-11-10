@@ -66,7 +66,6 @@ class APIIngress:
         if type(request) != dict:
             request = json.loads(request)
         og_filename = request.get("filename")
-        print(f'Received file name: {og_filename}')
         logger.info(f'Received file name: {og_filename}')
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
         download_file_from_s3(og_filepath)
@@ -223,7 +222,7 @@ class FullSTT:
         new_result = {'language':result['language'], 'segments':[]}
         speakers = []
         for segment in result['segments']:
-            text = preprocess_transcription(result['text'])
+            text = preprocess_transcription(segment['text'])
             if len(text) != 0:
                 segment['text'] = text
                 new_result['segments'].append(segment)

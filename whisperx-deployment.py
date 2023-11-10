@@ -1,7 +1,6 @@
 import os
 import whisperx
 import json
-import copy
 import gc
 import logging
 import httpx
@@ -149,8 +148,11 @@ class LiveSTT:
             result = self.asr_model.transcribe(audio, batch_size=batch_size)
             new_result = {'language':result['language'], 'segments':[]}
             for segment in result['segments']:
+                current_text = segment['text']
+                logger.info(f'Current transcription of segment: {current_text}')
                 text = preprocess_transcription(segment['text'])
-                if text != '':
+                if len(text) != 0:
+                    segment['text'] = text
                     new_result['segments'].append(segment)
 
             if len(new_result['segments']) == 0:
@@ -222,7 +224,8 @@ class FullSTT:
         speakers = []
         for segment in result['segments']:
             text = preprocess_transcription(result['text'])
-            if text != '':
+            if len(text) != 0:
+                segment['text'] = text
                 new_result['segments'].append(segment)
                 speaker = segment['speaker']
                 if speaker not in speakers:

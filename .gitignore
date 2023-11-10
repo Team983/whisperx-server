@@ -22,6 +22,11 @@ venv
 docs.zip
 archive.zip
 config/
+test-server.py
+request.py
+live-request.js
+package-lock.json
+package.json
 
 # vim temporary files
 *~

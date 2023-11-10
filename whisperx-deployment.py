@@ -154,8 +154,8 @@ class LiveSTT:
                     segment['text'] = text
                     new_result['segments'].append(segment)
 
-            if len(new_result['segments']) == 0:
-                raise ValueError("0")
+            # if len(new_result['segments']) == 0:
+            #     raise ValueError("0")
             
             new_result["status"] = "SUCCESS"           
             end_time = time()
@@ -255,8 +255,9 @@ class FullSTT:
             diarize_segments = self.diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, result)
             result = self.assign_new_speakers(result)
-            if len(result['segments']) == 0:
-                raise ValueError("0")
+
+            # if len(result['segments']) == 0:
+            #     raise ValueError("0")
             
             diarize_end_time = time()
             logger.info(f'Time taken for diarization: {diarize_end_time-diarize_start_time}')

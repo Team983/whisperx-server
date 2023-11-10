@@ -14,7 +14,7 @@ s3 = boto3.client(
     region_name=AWS_REGION
 )
 
-async def download_file_from_s3(filepath: str):
+def download_file_from_s3(filepath: str):
     with open(filepath, 'wb') as f:
         s3.download_fileobj(BUCKET_NAME, os.path.basename(filepath), f)
 

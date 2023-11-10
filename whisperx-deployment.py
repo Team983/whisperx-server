@@ -68,7 +68,7 @@ class APIIngress:
         og_filename = request.get("filename")
         logger.info(f'Received file name: {og_filename}')
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
-        await download_file_from_s3(og_filepath)
+        download_file_from_s3(og_filepath)
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)

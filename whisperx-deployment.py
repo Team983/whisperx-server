@@ -17,7 +17,7 @@ from services.audio_service import *
 from ray.serve.handle import DeploymentHandle
 from ray import serve
 from subprocess import CalledProcessError
-from utils.preprocess import preprocess_transcription
+from utils.preprocess import preprocess_transcription, assign_new_speakers
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ray.serve")
 
@@ -147,8 +147,6 @@ class LiveSTT:
             result = self.asr_model.transcribe(audio, batch_size=batch_size)
             new_result = {'language':result['language'], 'segments':[]}
             for segment in result['segments']:
-                current_text = segment['text']
-                logger.info(f'Current transcription of segment: {current_text}')
                 text = preprocess_transcription(segment['text'])
                 if len(text) != 0:
                     segment['text'] = text
@@ -218,27 +216,6 @@ class FullSTT:
         return asr_model
 
 
-    def assign_new_speakers(self, result):
-        new_result = {'language':result['language'], 'segments':[]}
-        speakers = []
-        for segment in result['segments']:
-            text = preprocess_transcription(segment['text'])
-            if len(text) != 0:
-                segment['text'] = text
-                new_result['segments'].append(segment)
-                speaker = segment['speaker']
-                if speaker not in speakers:
-                    speakers.append(speaker)
-
-        new_speakers = {}
-        for i in range(1, len(speakers)+1):
-            new_speakers[speakers[i-1]] = f'발화자 {i}'
-
-        for segment in new_result['segments']:
-            segment['speaker'] = new_speakers[segment['speaker']]
-        return new_result
-
-
     async def transcribe_audio(self, model_type:str, note_id:int, audio:np.ndarray):
         asr_model = await self.get_model(model_type)
         logger.info(f"Start transcribing note id: {note_id}")
@@ -254,7 +231,7 @@ class FullSTT:
             diarize_start_time = time()
             diarize_segments = self.diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, result)
-            result = self.assign_new_speakers(result)
+            result = assign_new_speakers(result)
 
             # if len(result['segments']) == 0:
             #     raise ValueError("0")

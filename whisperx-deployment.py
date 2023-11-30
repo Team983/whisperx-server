@@ -66,7 +66,7 @@ class APIIngress:
         if type(request) != dict:
             request = json.loads(request)
         og_filename = request.get("filename")
-        logger.info(f'Received file name: {og_filename}')
+        logger.info(f'Received file name: {og_filename}, note id: {note_id}')
         og_filepath = os.path.join(os.getcwd(), self.FULL_UPLOAD_DIR, og_filename)
         download_file_from_s3(og_filepath)
         try:

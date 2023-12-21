@@ -72,7 +72,7 @@ class APIIngress:
         try:
             converted_filepath = convert_to_m4a(og_filepath)
             converted_filename = os.path.basename(converted_filepath)
-            if os.path.exists(og_filepath):
+            if os.path.splitext(og_filepath)[1] != '.m4a' and os.path.exists(og_filepath):
                 os.remove(og_filepath)
             duration = get_audio_duration(converted_filepath)
 

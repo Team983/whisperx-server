@@ -25,6 +25,8 @@ logger = logging.getLogger("ray.serve")
 # from dotenv import load_dotenv
 # load_dotenv(dotenv_path='/home/team983/secret/.env')
 ##########
+from huggingface_hub.hf_api import HfFolder
+HfFolder.save_token(os.getenv("HF_API_KEY"))
 
 app = FastAPI()
 
@@ -201,7 +203,7 @@ class FullSTT:
             except (
                 huggingface_hub.utils.HfHubHTTPError,
                 requests.exceptions.ConnectionError,
-            ) as exception:
+            ):
                 kwargs["local_files_only"] = True
                 huggingface_hub.snapshot_download(self._MODELS.get(model_name), **kwargs)
 
